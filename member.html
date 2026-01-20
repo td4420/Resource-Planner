@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Member Detail</title>
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+  <header>
+    <div class="title">
+      <h1 id="member-title">Member Detail</h1>
+      <p class="subtitle"><a class="link" href="index.html">← Back to team</a></p>
+    </div>
+    <div class="stack" style="align-items:flex-start;">
+      <button id="download-data" class="btn btn-secondary">Download JSON</button>
+      <button id="upload-data" class="btn btn-ghost">Load JSON</button>
+      <input id="file-input" type="file" accept="application/json" hidden />
+    </div>
+  </header>
+
+  <main>
+    <section>
+      <h2>Overview</h2>
+      <div id="member-meta" class="helper">Loading member…</div>
+    </section>
+
+    <section>
+      <h2>Time Slots</h2>
+      <div class="helper">Add or edit slots for this member.</div>
+      <div class="section-row">
+        <div>
+          <label for="slot-project">Project</label>
+          <input id="slot-project" type="text" placeholder="Project Nova" />
+        </div>
+        <div>
+          <label for="slot-day">Day of Week</label>
+          <select id="slot-day">
+            <option value="Monday">Monday</option>
+            <option value="Tuesday">Tuesday</option>
+            <option value="Wednesday">Wednesday</option>
+            <option value="Thursday">Thursday</option>
+            <option value="Friday">Friday</option>
+            <option value="Saturday">Saturday</option>
+            <option value="Sunday">Sunday</option>
+          </select>
+        </div>
+      </div>
+      <div class="section-row">
+        <div>
+          <label for="slot-start">Start</label>
+          <input id="slot-start" type="time" />
+        </div>
+        <div>
+          <label for="slot-end">End</label>
+          <input id="slot-end" type="time" />
+        </div>
+      </div>
+      <div class="stack">
+        <button id="slot-save" class="btn btn-primary">Save Slot</button>
+        <button id="slot-reset" class="btn btn-ghost">Clear</button>
+      </div>
+      <div class="helper" id="slot-state">Ready to add slot.</div>
+    </section>
+
+    <section>
+      <h2>Slots List</h2>
+      <div class="table-wrapper">
+        <table>
+          <thead>
+            <tr>
+              <th>Project</th>
+              <th>Day</th>
+              <th>Time</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="slot-table"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section>
+      <h2>Timeline</h2>
+      <div class="helper">Drag on a day column (09:00–18:15) to prefill a slot.</div>
+      <div id="timeline"></div>
+    </section>
+  </main>
+
+  <div id="slot-modal" class="modal-backdrop" role="dialog" aria-modal="true">
+    <div class="modal-card">
+      <h3>Add Slot from Drag</h3>
+      <p class="meta" id="modal-summary"></p>
+      <div class="section-row">
+        <div>
+          <label for="modal-project">Project</label>
+          <input id="modal-project" type="text" placeholder="Project Nova" />
+        </div>
+      </div>
+      <div class="section-row">
+        <div>
+          <label for="modal-start">Start</label>
+          <input id="modal-start" type="time" />
+        </div>
+        <div>
+          <label for="modal-end">End</label>
+          <input id="modal-end" type="time" />
+        </div>
+      </div>
+      <div class="stack modal-actions">
+        <button id="modal-save" class="btn btn-primary">Add Slot</button>
+        <button id="modal-cancel" class="btn btn-ghost">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="js/member-detail.js" defer></script>
+</body>
+</html>

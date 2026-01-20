@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Resource Planner</title>
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+  <header>
+    <div class="title">
+      <h1>Resource Planner</h1>
+      <p class="subtitle">Assign members to projects, track weekly load, and spot availability fast.</p>
+    </div>
+    <div class="stack" style="align-items:flex-start;">
+      <div class="pill">Local & Private</div>
+      <button id="download-data" class="btn btn-secondary">Download JSON</button>
+      <button id="upload-data" class="btn btn-ghost">Load JSON</button>
+      <input id="file-input" type="file" accept="application/json" hidden />
+    </div>
+  </header>
+
+  <main>
+    <section>
+      <h2>Team</h2>
+      <div class="helper">Add or edit members. Click a row to open the member detail page with their time slots.</div>
+      <div class="section-row">
+        <div>
+          <label for="member-name">Name</label>
+          <input id="member-name" type="text" placeholder="Add a teammate" />
+        </div>
+        <div>
+          <label for="member-role">Role / Notes</label>
+          <input id="member-role" type="text" placeholder="Designer, Backend, etc." />
+        </div>
+      </div>
+      <div class="stack">
+        <button id="member-save" class="btn btn-primary">Save Member</button>
+        <button id="member-reset" class="btn btn-ghost">Clear</button>
+      </div>
+      <div class="helper" id="member-state">Ready to add new member.</div>
+      <div class="table-wrapper">
+        <table>
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Role / Notes</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="member-table"></tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+
+  <script src="js/members.js" defer></script>
+</body>
+</html>
