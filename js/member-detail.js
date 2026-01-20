@@ -1,3 +1,4 @@
+const storageKey = "resourcePlannerData";
 const params = new URLSearchParams(window.location.search);
 const memberId = params.get("id");
 
@@ -6,16 +7,11 @@ const memberMeta = document.getElementById("member-meta");
 const downloadDataBtn = document.getElementById("download-data");
 const uploadDataBtn = document.getElementById("upload-data");
 const fileInput = document.getElementById("file-input");
+const themeToggle = document.getElementById("theme-toggle");
 
-const slotProject = document.getElementById("slot-project");
-const slotDay = document.getElementById("slot-day");
-const slotStart = document.getElementById("slot-start");
-const slotEnd = document.getElementById("slot-end");
-const slotSave = document.getElementById("slot-save");
-const slotReset = document.getElementById("slot-reset");
-const slotState = document.getElementById("slot-state");
-const slotTable = document.getElementById("slot-table");
 const timeline = document.getElementById("timeline");
+const availabilityEl = document.getElementById("availability");
+const monthPicker = document.getElementById("month-picker");
 
 const modalBackdrop = document.getElementById("slot-modal");
 const modalSummary = document.getElementById("modal-summary");
@@ -24,6 +20,12 @@ const modalStart = document.getElementById("modal-start");
 const modalEnd = document.getElementById("modal-end");
 const modalSave = document.getElementById("modal-save");
 const modalCancel = document.getElementById("modal-cancel");
+const toastEl = document.getElementById("toast");
+const confirmBackdrop = document.getElementById("confirm");
+const confirmTitle = document.getElementById("confirm-title");
+const confirmMessage = document.getElementById("confirm-message");
+const confirmYes = document.getElementById("confirm-yes");
+const confirmNo = document.getElementById("confirm-no");
 
 const CHART_START = 9 * 60; // 09:00 in minutes
 const CHART_END = 18 * 60 + 15; // 18:15 in minutes
@@ -32,25 +34,58 @@ const PX_PER_MIN = 1;
 const CHART_HEIGHT = CHART_RANGE * PX_PER_MIN;
 const MIN_DRAG_MINUTES = 5;
 
-let data = { members: [], slots: [] };
+let data = { members: [], slots: [], projects: [] };
 let member = null;
 let editingSlotId = null;
 let dragState = null;
+let dragDayForModal = null;
+let modalRange = null; // restricts start/end when launching from availability
+let confirmResolver = null;
+let selectedMonth = null;
+let themeMode = "light";
 
 function generateId() {
   return crypto.randomUUID ? crypto.randomUUID() : `id-${Date.now()}-${Math.random()}`;
 }
 
-async function loadInitialData() {
+function currentMonth() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+}
+
+function loadFromStorage() {
   try {
-    const res = await fetch("data.json", { cache: "no-store" });
-    if (res.ok) {
-      const json = await res.json();
-      if (json.members && json.slots) data = json;
-    }
+    const raw = localStorage.getItem(storageKey);
+    if (raw) data = JSON.parse(raw);
   } catch (e) {
-    console.warn("Could not load data.json, starting empty.", e);
+    console.warn("Could not read localStorage, starting empty.", e);
   }
+  data.members = data.members || [];
+  data.slots = (data.slots || []).map((s) => ({ ...s, month: s.month || currentMonth() }));
+  data.projects = data.projects || [];
+  data.members.forEach((m) => {
+    if (!m.level) m.level = "Unspecified";
+  });
+}
+
+function saveToStorage() {
+  localStorage.setItem(storageKey, JSON.stringify(data));
+}
+
+function applyTheme(mode) {
+  document.body.classList.toggle("dark", mode === "dark");
+  localStorage.setItem("theme", mode);
+  themeMode = mode;
+  if (themeToggle) themeToggle.textContent = mode === "dark" ? "Light Mode" : "Dark Mode";
+}
+
+function confirmDialog(message) {
+  return new Promise((resolve) => {
+    confirmResolver = resolve;
+    confirmTitle.textContent = "Please Confirm";
+    confirmMessage.textContent = message;
+    confirmBackdrop.classList.add("active");
+  });
 }
 
 function downloadData() {
@@ -72,19 +107,20 @@ function handleFileChange(e) {
       const json = JSON.parse(reader.result);
       if (!json.members || !json.slots) throw new Error("Missing members or slots keys.");
       data = json;
+      saveToStorage();
       member = data.members.find((m) => m.id === memberId);
       if (!member) {
         memberMeta.textContent = "Member not found in uploaded data.";
-        slotTable.innerHTML = `<tr><td colspan="4" class="empty">No slots to show.</td></tr>`;
         timeline.innerHTML = "";
+        showToast("Member not found in uploaded data.", true);
       } else {
         updateMemberMeta();
-        renderSlots();
         renderTimeline();
-        resetSlotForm();
+        renderAvailability();
+        showToast("Data loaded.");
       }
     } catch (err) {
-      alert("Invalid JSON file.");
+      showToast("Invalid JSON file.", true);
       console.error(err);
     }
   };
@@ -94,17 +130,9 @@ function handleFileChange(e) {
 
 function updateMemberMeta() {
   memberTitle.textContent = member ? `Member: ${member.name}` : "Member Detail";
-  memberMeta.textContent = member ? `${member.name} — ${member.role || "No role provided"}` : "Member not found.";
-}
-
-function resetSlotForm() {
-  editingSlotId = null;
-  slotProject.value = "";
-  slotDay.value = "Monday";
-  slotStart.value = "";
-  slotEnd.value = "";
-  slotState.textContent = "Ready to add slot.";
-  slotSave.textContent = "Save Slot";
+  memberMeta.textContent = member
+    ? `${member.name} — ${member.role || "No role provided"} — ${member.level || "Unspecified"}`
+    : "Member not found.";
 }
 
 function minutesBetween(start, end) {
@@ -152,32 +180,16 @@ function colorForKey(key) {
   return `hsl(${hue}, 70%, 78%)`;
 }
 
-function renderSlots() {
-  slotTable.innerHTML = "";
-  const memberSlots = data.slots
-    .filter((s) => s.memberId === memberId)
-    .sort((a, b) => a.day.localeCompare(b.day) || a.start.localeCompare(b.start));
-
-  if (!memberSlots.length) {
-    slotTable.innerHTML = `<tr><td colspan="4" class="empty">No slots yet.</td></tr>`;
-    return;
-  }
-
-  memberSlots.forEach((s) => {
-    const row = document.createElement("tr");
-    row.innerHTML = `
-      <td>${s.project}</td>
-      <td>${s.day}</td>
-      <td>${s.start} – ${s.end}</td>
-      <td>
-        <div class="stack">
-          <button class="btn btn-ghost" data-action="edit-slot" data-id="${s.id}">Edit</button>
-          <button class="btn btn-ghost" data-action="remove-slot" data-id="${s.id}">Remove</button>
-        </div>
-      </td>
-    `;
-    slotTable.appendChild(row);
-  });
+function hasOverlap(day, start, end, ignoreId = null) {
+  const startMin = timeToMinutes(start);
+  const endMin = timeToMinutes(end);
+  return data.slots
+    .filter((s) => s.memberId === memberId && s.day === day && s.id !== ignoreId && s.month === selectedMonth)
+    .some((s) => {
+      const sStart = timeToMinutes(s.start);
+      const sEnd = timeToMinutes(s.end);
+      return Math.max(startMin, sStart) < Math.min(endMin, sEnd);
+    });
 }
 
 function renderTimeline() {
@@ -211,7 +223,7 @@ function renderTimeline() {
     col.className = "day-col";
     col.style.height = CHART_HEIGHT + "px";
     const daySlots = data.slots
-      .filter((s) => s.memberId === memberId && s.day === day)
+      .filter((s) => s.memberId === memberId && s.day === day && s.month === selectedMonth)
       .sort((a, b) => a.start.localeCompare(b.start));
 
     if (!daySlots.length) {
@@ -233,7 +245,14 @@ function renderTimeline() {
         block.style.height = `${height}px`;
         block.style.background = colorForKey(s.project + s.day);
         block.title = `${s.project} • ${s.start} – ${s.end}`;
-        block.innerHTML = `<strong>${s.project}</strong><span>${s.start} – ${s.end}</span>`;
+        block.innerHTML = `
+          <strong>${s.project}</strong>
+          <span>${s.start} – ${s.end}</span>
+          <div class="slot-actions">
+            <button class="slot-btn" data-action="remove-slot" data-id="${s.id}">Delete</button>
+          </div>
+        `;
+        block.dataset.slotId = s.id;
         col.appendChild(block);
       });
     }
@@ -245,25 +264,48 @@ function renderTimeline() {
   timeline.appendChild(body);
 }
 
-function handleSlotSave() {
-  if (!member) return;
-  const project = slotProject.value.trim();
-  const day = slotDay.value;
-  const start = slotStart.value;
-  const end = slotEnd.value;
-  if (!project) return alert("Project is required.");
-  if (!start || !end) return alert("Start and end times are required.");
-  if (end <= start) return alert("End time must be after start time.");
+function renderAvailability() {
+  if (!availabilityEl) return;
+  availabilityEl.innerHTML = "";
+  const days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
+  days.forEach((day) => {
+    const daySlots = data.slots
+      .filter((s) => s.memberId === memberId && s.day === day && s.month === selectedMonth)
+      .sort((a, b) => a.start.localeCompare(b.start));
+    const gaps = [];
+    let cursor = CHART_START;
+    if (!daySlots.length) {
+      gaps.push([CHART_START, CHART_END]);
+    } else {
+      daySlots.forEach((s) => {
+        const sStart = Math.max(CHART_START, timeToMinutes(s.start));
+        const sEnd = Math.min(CHART_END, timeToMinutes(s.end));
+        if (sStart > cursor) gaps.push([cursor, sStart]);
+        cursor = Math.max(cursor, sEnd);
+      });
+      if (cursor < CHART_END) gaps.push([cursor, CHART_END]);
+    }
 
-  if (editingSlotId) {
-    const slot = data.slots.find((s) => s.id === editingSlotId);
-    if (slot) Object.assign(slot, { project, day, start, end });
-  } else {
-    data.slots.push({ id: generateId(), memberId, project, day, start, end });
-  }
-  renderSlots();
-  renderTimeline();
-  resetSlotForm();
+    const row = document.createElement("div");
+    row.className = "item";
+    const label = document.createElement("div");
+    label.innerHTML = `<h3>${day}</h3>`;
+    row.appendChild(label);
+    const content = document.createElement("div");
+    if (!gaps.length || gaps.every(([a, b]) => b - a <= 0)) {
+      content.innerHTML = '<span class="empty">Fully booked</span>';
+    } else {
+      content.innerHTML = gaps
+        .filter(([a, b]) => b - a > 0)
+        .map(
+          ([a, b]) =>
+            `<span class="slot-chip" data-available-day="${day}" data-start="${minutesToTime(a)}" data-end="${minutesToTime(b)}"><span class="chip-time">${minutesToTime(a)} – ${minutesToTime(b)}</span></span>`
+        )
+        .join(" ");
+    }
+    row.appendChild(content);
+    availabilityEl.appendChild(row);
+  });
 }
 
 function handleSlotClick(e) {
@@ -274,51 +316,86 @@ function handleSlotClick(e) {
     const slot = data.slots.find((s) => s.id === id);
     if (!slot) return;
     editingSlotId = id;
-    slotProject.value = slot.project;
-    slotDay.value = slot.day;
-    slotStart.value = slot.start;
-    slotEnd.value = slot.end;
-    slotState.textContent = "Editing time slot — save to apply changes.";
-    slotSave.textContent = "Update Slot";
+    dragDayForModal = slot.day;
+    modalRange = null;
+    populateModal(slot.day, timeToMinutes(slot.start), timeToMinutes(slot.end), slot.project);
+    modalBackdrop.classList.add("active");
   } else if (action === "remove-slot") {
-    data.slots = data.slots.filter((s) => s.id !== id);
-    renderSlots();
-    renderTimeline();
-    resetSlotForm();
+    confirmDialog("Delete this slot?").then((ok) => {
+      if (!ok) return;
+      data.slots = data.slots.filter((s) => s.id !== id);
+      saveToStorage();
+      renderTimeline();
+      renderAvailability();
+      showToast("Slot deleted.");
+      hideSlotModal();
+    });
   }
 }
 
-function populateDragModal(day, startMin, endMin) {
-  modalProject.value = "";
+function populateModal(day, startMin, endMin, projectValue = "") {
   modalStart.value = minutesToTime(startMin);
   modalEnd.value = minutesToTime(endMin);
   modalSummary.textContent = `${day}: ${modalStart.value} – ${modalEnd.value}`;
+  modalProject.value = projectValue;
 }
 
 function showSlotModal(day, startMin, endMin) {
-  populateDragModal(day, startMin, endMin);
-  modalBackdrop.dataset.day = day;
+  editingSlotId = null;
+  dragDayForModal = day;
+  modalRange = null;
+  populateModal(day, startMin, endMin);
   modalBackdrop.classList.add("active");
 }
 
 function hideSlotModal() {
   modalBackdrop.classList.remove("active");
-  delete modalBackdrop.dataset.day;
+  dragDayForModal = null;
+  editingSlotId = null;
+  modalRange = null;
 }
 
 function handleModalSave() {
-  if (!modalBackdrop.dataset.day) return hideSlotModal();
+  if (!dragDayForModal) return hideSlotModal();
   const project = modalProject.value.trim();
   const start = modalStart.value;
   const end = modalEnd.value;
-  const day = modalBackdrop.dataset.day;
-  if (!project) return alert("Project is required.");
-  if (!start || !end) return alert("Start and end times are required.");
-  if (end <= start) return alert("End time must be after start time.");
-  data.slots.push({ id: generateId(), memberId, project, day, start, end });
-  renderSlots();
+  const day = dragDayForModal;
+  if (!project) return showToast("Project is required.", true);
+  if (!start || !end) return showToast("Start and end times are required.", true);
+  if (end <= start) return showToast("End time must be after start time.", true);
+  if (hasOverlap(day, start, end, editingSlotId)) {
+    return showToast("This time overlaps an existing slot.", true);
+  }
+  if (modalRange) {
+    const startMin = timeToMinutes(start);
+    const endMin = timeToMinutes(end);
+    if (startMin < modalRange.start || endMin > modalRange.end) {
+      return showToast("Pick a time inside the suggested free slot.", true);
+    }
+  }
+  if (editingSlotId) {
+    const slot = data.slots.find((s) => s.id === editingSlotId);
+    if (slot) Object.assign(slot, { project, day, start, end, month: selectedMonth });
+  } else {
+    data.slots.push({ id: generateId(), memberId, project, day, start, end, month: selectedMonth });
+  }
+  saveToStorage();
   renderTimeline();
+  renderAvailability();
   hideSlotModal();
+  showToast(editingSlotId ? "Slot updated." : "Slot added.");
+}
+
+function showToast(message, isError = false) {
+  if (!toastEl) return;
+  toastEl.textContent = message;
+  toastEl.classList.toggle("error", isError);
+  toastEl.classList.add("show");
+  clearTimeout(showToast._timer);
+  showToast._timer = setTimeout(() => {
+    toastEl.classList.remove("show");
+  }, 2200);
 }
 
 function attachDragHandlers(col, day) {
@@ -372,7 +449,9 @@ async function init() {
     return;
   }
 
-  await loadInitialData();
+  loadFromStorage();
+  selectedMonth = currentMonth();
+  if (monthPicker) monthPicker.value = selectedMonth;
   member = data.members.find((m) => m.id === memberId);
   if (!member) {
     memberMeta.textContent = "Member not found.";
@@ -380,19 +459,76 @@ async function init() {
   }
 
   updateMemberMeta();
-  renderSlots();
   renderTimeline();
-  resetSlotForm();
+  renderAvailability();
 
-  slotSave.addEventListener("click", handleSlotSave);
-  slotReset.addEventListener("click", resetSlotForm);
-  slotTable.addEventListener("click", handleSlotClick);
+  timeline.addEventListener("click", (e) => {
+    const btn = e.target.closest("button[data-action='remove-slot']");
+    if (btn) {
+        const { id } = btn.dataset;
+        confirmDialog("Delete this slot?").then((ok) => {
+          if (!ok) return;
+          data.slots = data.slots.filter((s) => s.id !== id);
+          saveToStorage();
+          renderTimeline();
+          renderAvailability();
+          showToast("Slot deleted.");
+        });
+      }
+  });
+  availabilityEl.addEventListener("click", (e) => {
+    const chip = e.target.closest("[data-available-day]");
+    if (!chip) return;
+    const day = chip.dataset.availableDay;
+    const start = chip.dataset.start;
+    const end = chip.dataset.end;
+    editingSlotId = null;
+    dragDayForModal = day;
+    modalRange = { start: timeToMinutes(start), end: timeToMinutes(end) };
+    populateModal(day, modalRange.start, modalRange.end);
+    modalBackdrop.classList.add("active");
+  });
 
   modalSave.addEventListener("click", handleModalSave);
   modalCancel.addEventListener("click", hideSlotModal);
   modalBackdrop.addEventListener("click", (e) => {
     if (e.target === modalBackdrop) hideSlotModal();
   });
+
+  if (monthPicker) {
+    monthPicker.addEventListener("change", () => {
+      selectedMonth = monthPicker.value || currentMonth();
+      renderTimeline();
+      renderAvailability();
+    });
+  }
+
+  confirmYes.addEventListener("click", () => {
+    confirmBackdrop.classList.remove("active");
+    if (confirmResolver) confirmResolver(true);
+    confirmResolver = null;
+  });
+
+  confirmNo.addEventListener("click", () => {
+    confirmBackdrop.classList.remove("active");
+    if (confirmResolver) confirmResolver(false);
+    confirmResolver = null;
+  });
+
+  confirmBackdrop.addEventListener("click", (e) => {
+    if (e.target === confirmBackdrop) {
+      confirmBackdrop.classList.remove("active");
+      if (confirmResolver) confirmResolver(false);
+      confirmResolver = null;
+    }
+  });
+
+  const storedTheme = localStorage.getItem("theme");
+  const prefersDark = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches;
+  applyTheme(storedTheme || (prefersDark ? "dark" : "light"));
+  if (themeToggle) {
+    themeToggle.addEventListener("click", () => applyTheme(themeMode === "dark" ? "light" : "dark"));
+  }
 
   downloadDataBtn.addEventListener("click", downloadData);
   uploadDataBtn.addEventListener("click", () => fileInput.click());

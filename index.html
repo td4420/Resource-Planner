@@ -14,8 +14,9 @@
     </div>
     <div class="stack" style="align-items:flex-start;">
       <div class="pill">Local & Private</div>
-      <button id="download-data" class="btn btn-secondary">Download JSON</button>
-      <button id="upload-data" class="btn btn-ghost">Load JSON</button>
+      <button id="theme-toggle" class="btn btn-secondary">Toggle Theme</button>
+      <button id="download-data" class="btn btn-primary">Download JSON</button>
+      <button id="upload-data" class="btn btn-secondary">Load JSON</button>
       <input id="file-input" type="file" accept="application/json" hidden />
     </div>
   </header>
@@ -23,7 +24,7 @@
   <main>
     <section>
       <h2>Team</h2>
-      <div class="helper">Add or edit members. Click a row to open the member detail page with their time slots.</div>
+      <div class="helper" style="margin-bottom:12px;">Add or edit members. Click a row to open the member detail page with their time slots.</div>
       <div class="section-row">
         <div>
           <label for="member-name">Name</label>
@@ -33,18 +34,38 @@
           <label for="member-role">Role / Notes</label>
           <input id="member-role" type="text" placeholder="Designer, Backend, etc." />
         </div>
+        <div>
+          <label for="member-level">Level</label>
+          <select id="member-level">
+            <option value="Junior">Junior</option>
+            <option value="Middle">Middle</option>
+            <option value="Senior">Senior</option>
+          </select>
+        </div>
       </div>
-      <div class="stack">
+      <div class="stack" style="margin-top:14px;">
         <button id="member-save" class="btn btn-primary">Save Member</button>
-        <button id="member-reset" class="btn btn-ghost">Clear</button>
+        <button id="member-reset" class="btn btn-secondary">Clear</button>
       </div>
-      <div class="helper" id="member-state">Ready to add new member.</div>
+      <div class="helper" id="member-state" style="margin:12px 0 16px 0;">Ready to add new member.</div>
       <div class="table-wrapper">
         <table>
           <thead>
             <tr>
               <th>Name</th>
               <th>Role / Notes</th>
+              <th>
+                <div class="level-head">
+                  <span>Level</span>
+                  <button id="member-filter-btn" class="filter-btn" aria-haspopup="true" aria-expanded="false">☰</button>
+                  <div id="member-filter-menu" class="filter-menu" role="menu">
+                    <button data-value="all" role="menuitem">All</button>
+                    <button data-value="Junior" role="menuitem">Junior</button>
+                    <button data-value="Middle" role="menuitem">Middle</button>
+                    <button data-value="Senior" role="menuitem">Senior</button>
+                  </div>
+                </div>
+              </th>
               <th>Actions</th>
             </tr>
           </thead>
@@ -53,6 +74,18 @@
       </div>
     </section>
   </main>
+
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+  <div id="confirm" class="confirm-backdrop" role="dialog" aria-modal="true">
+    <div class="confirm-card">
+      <h3 id="confirm-title">Confirm</h3>
+      <p id="confirm-message" class="meta"></p>
+      <div class="stack confirm-actions">
+        <button id="confirm-yes" class="btn btn-primary">Yes</button>
+        <button id="confirm-no" class="btn btn-ghost">Cancel</button>
+      </div>
+    </div>
+  </div>
 
   <script src="js/members.js" defer></script>
 </body>

@@ -13,6 +13,7 @@
       <p class="subtitle"><a class="link" href="index.html">← Back to team</a></p>
     </div>
     <div class="stack" style="align-items:flex-start;">
+      <button id="theme-toggle" class="btn btn-secondary">Toggle Theme</button>
       <button id="download-data" class="btn btn-secondary">Download JSON</button>
       <button id="upload-data" class="btn btn-ghost">Load JSON</button>
       <input id="file-input" type="file" accept="application/json" hidden />
@@ -26,70 +27,27 @@
     </section>
 
     <section>
-      <h2>Time Slots</h2>
-      <div class="helper">Add or edit slots for this member.</div>
-      <div class="section-row">
-        <div>
-          <label for="slot-project">Project</label>
-          <input id="slot-project" type="text" placeholder="Project Nova" />
-        </div>
-        <div>
-          <label for="slot-day">Day of Week</label>
-          <select id="slot-day">
-            <option value="Monday">Monday</option>
-            <option value="Tuesday">Tuesday</option>
-            <option value="Wednesday">Wednesday</option>
-            <option value="Thursday">Thursday</option>
-            <option value="Friday">Friday</option>
-            <option value="Saturday">Saturday</option>
-            <option value="Sunday">Sunday</option>
-          </select>
-        </div>
-      </div>
-      <div class="section-row">
-        <div>
-          <label for="slot-start">Start</label>
-          <input id="slot-start" type="time" />
-        </div>
-        <div>
-          <label for="slot-end">End</label>
-          <input id="slot-end" type="time" />
-        </div>
-      </div>
-      <div class="stack">
-        <button id="slot-save" class="btn btn-primary">Save Slot</button>
-        <button id="slot-reset" class="btn btn-ghost">Clear</button>
-      </div>
-      <div class="helper" id="slot-state">Ready to add slot.</div>
-    </section>
-
-    <section>
-      <h2>Slots List</h2>
-      <div class="table-wrapper">
-        <table>
-          <thead>
-            <tr>
-              <th>Project</th>
-              <th>Day</th>
-              <th>Time</th>
-              <th>Actions</th>
-            </tr>
-          </thead>
-          <tbody id="slot-table"></tbody>
-        </table>
-      </div>
-    </section>
-
-    <section>
       <h2>Timeline</h2>
-      <div class="helper">Drag on a day column (09:00–18:15) to prefill a slot.</div>
-      <div id="timeline"></div>
+      <div class="section-row">
+        <div>
+          <label for="month-picker">Month</label>
+          <input id="month-picker" type="month" />
+        </div>
+      </div>
+      <div class="helper" style="margin:12px 0;">Drag on a day column (09:00–18:15) to prefill a slot for the selected month.</div>
+      <div class="table-wrapper"><div id="timeline"></div></div>
+    </section>
+
+    <section>
+      <h2>Available Slots</h2>
+      <div class="helper">Free time windows between 09:00–18:15 for this member.</div>
+      <div id="availability" class="list"></div>
     </section>
   </main>
 
   <div id="slot-modal" class="modal-backdrop" role="dialog" aria-modal="true">
     <div class="modal-card">
-      <h3>Add Slot from Drag</h3>
+      <h3>Add Slot</h3>
       <p class="meta" id="modal-summary"></p>
       <div class="section-row">
         <div>
@@ -110,6 +68,18 @@
       <div class="stack modal-actions">
         <button id="modal-save" class="btn btn-primary">Add Slot</button>
         <button id="modal-cancel" class="btn btn-ghost">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+  <div id="confirm" class="confirm-backdrop" role="dialog" aria-modal="true">
+    <div class="confirm-card">
+      <h3 id="confirm-title">Confirm</h3>
+      <p id="confirm-message" class="meta"></p>
+      <div class="stack confirm-actions">
+        <button id="confirm-yes" class="btn btn-primary">Yes</button>
+        <button id="confirm-no" class="btn btn-ghost">Cancel</button>
       </div>
     </div>
   </div>
