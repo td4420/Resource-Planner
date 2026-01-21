@@ -13,9 +13,12 @@
       <p class="subtitle"><a class="link" href="index.html">← Back to team</a></p>
     </div>
     <div class="stack" style="align-items:flex-start;">
-      <button id="theme-toggle" class="btn btn-secondary">Toggle Theme</button>
-      <button id="download-data" class="btn btn-secondary">Download JSON</button>
-      <button id="upload-data" class="btn btn-ghost">Load JSON</button>
+      <label class="switch" aria-label="Toggle theme">
+        <input id="theme-toggle" type="checkbox" />
+        <span class="slider"></span>
+      </label>
+      <button id="download-data" class="btn btn-primary">Download JSON</button>
+      <button id="upload-data" class="btn btn-secondary">Load JSON</button>
       <input id="file-input" type="file" accept="application/json" hidden />
     </div>
   </header>

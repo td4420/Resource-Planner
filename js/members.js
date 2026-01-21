@@ -56,7 +56,7 @@ function applyTheme(mode) {
   document.body.classList.toggle("dark", mode === "dark");
   localStorage.setItem("theme", mode);
   themeMode = mode;
-  if (themeToggle) themeToggle.textContent = mode === "dark" ? "Light Mode" : "Dark Mode";
+  if (themeToggle) themeToggle.checked = mode === "dark";
 }
 
 function initTheme() {
@@ -270,7 +270,7 @@ async function init() {
     }
   });
   if (themeToggle) {
-    themeToggle.addEventListener("click", () => applyTheme(themeMode === "dark" ? "light" : "dark"));
+    themeToggle.addEventListener("change", () => applyTheme(themeToggle.checked ? "dark" : "light"));
   }
   initTheme();
   downloadDataBtn.addEventListener("click", downloadData);
