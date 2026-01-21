@@ -38,12 +38,19 @@
         </div>
       </div>
       <div class="helper" style="margin:12px 0;">Drag on a day column (09:00–18:15) to prefill a slot for the selected month.</div>
-      <div class="table-wrapper"><div id="timeline"></div></div>
+      <div class="timeline-shell">
+        <div class="timeline-scroller">
+          <div id="timeline"></div>
+        </div>
+      </div>
     </section>
 
     <section>
       <h2>Available Slots</h2>
-      <div class="helper">Free time windows between 09:00–18:15 for this member.</div>
+      <div class="helper">Free time windows between 09:00–18:15 for this member. Select one or many then assign to a project.</div>
+      <div class="stack" style="align-items:flex-end;margin:10px 0 6px 0;">
+        <button id="avail-open" class="btn btn-primary">Add From Available</button>
+      </div>
       <div id="availability" class="list"></div>
     </section>
   </main>
@@ -71,6 +78,25 @@
       <div class="stack modal-actions">
         <button id="modal-save" class="btn btn-primary">Add Slot</button>
         <button id="modal-cancel" class="btn btn-ghost">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="avail-modal" class="modal-backdrop" role="dialog" aria-modal="true">
+    <div class="modal-card">
+      <h3>Add Slots From Availability</h3>
+      <p class="meta">Select free windows to assign to a project.</p>
+      <div class="section-row">
+        <div>
+          <label for="avail-project">Project</label>
+          <input id="avail-project" type="text" placeholder="Project name" />
+        </div>
+      </div>
+      <div id="avail-list" class="list" style="max-height:220px; overflow:auto; margin-top:8px;"></div>
+      <div class="stack modal-actions">
+        <button id="avail-select-all" class="btn btn-secondary">Select All</button>
+        <button id="avail-submit" class="btn btn-primary">Assign Slots</button>
+        <button id="avail-cancel" class="btn btn-secondary">Cancel</button>
       </div>
     </div>
   </div>

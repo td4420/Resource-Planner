@@ -285,6 +285,22 @@ table {
   width: 100%;
 }
 
+.timeline-shell {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 12px;
+}
+
+.timeline-scroller {
+  overflow-x: auto;
+}
+
+#timeline {
+  min-width: 100%;
+}
+
 .link {
   color: var(--accent);
   text-decoration: none;
@@ -446,6 +462,17 @@ th {
 }
 
 
+.slot-chip.selected {
+  background: var(--accent);
+  border-color: var(--accent-strong);
+  color: #fff;
+}
+
+.slot-chip.selected .chip-project,
+.slot-chip.selected .chip-time {
+  color: #fff;
+}
+
 .chip-time {
   color: var(--chip-text);
   font-weight: 600;
@@ -479,7 +506,7 @@ th {
 
 .calendar-header {
   display: grid;
-  grid-template-columns: 90px repeat(7, 1fr);
+  grid-template-columns: 90px repeat(5, minmax(180px, 1fr));
   gap: 8px;
   align-items: end;
   margin-bottom: 6px;
@@ -504,7 +531,7 @@ th {
 
 .calendar-body {
   display: grid;
-  grid-template-columns: 90px repeat(7, 1fr);
+  grid-template-columns: 90px repeat(5, minmax(180px, 1fr));
   gap: 8px;
 }
 
@@ -512,7 +539,7 @@ th {
   position: relative;
   border: 1px dashed var(--border);
   border-radius: 12px;
-  background: var(--card);
+  background: var(--card-soft);
   color: var(--muted);
   font-size: 11px;
   padding-left: 10px;
