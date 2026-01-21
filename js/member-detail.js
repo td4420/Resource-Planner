@@ -76,7 +76,10 @@ function applyTheme(mode) {
   document.body.classList.toggle("dark", mode === "dark");
   localStorage.setItem("theme", mode);
   themeMode = mode;
-  if (themeToggle) themeToggle.textContent = mode === "dark" ? "Light Mode" : "Dark Mode";
+  if (themeToggle) {
+    themeToggle.textContent = mode === "dark" ? "☀️" : "🌙";
+    themeToggle.setAttribute("aria-label", mode === "dark" ? "Switch to light mode" : "Switch to dark mode");
+  }
 }
 
 function confirmDialog(message) {
@@ -527,7 +530,7 @@ async function init() {
   const prefersDark = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches;
   applyTheme(storedTheme || (prefersDark ? "dark" : "light"));
   if (themeToggle) {
-    themeToggle.addEventListener("click", () => applyTheme(themeMode === "dark" ? "light" : "dark"));
+    themeToggle.addEventListener("change", () => applyTheme(themeToggle.checked ? "dark" : "light"));
   }
 
   downloadDataBtn.addEventListener("click", downloadData);
