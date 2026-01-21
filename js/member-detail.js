@@ -12,6 +12,13 @@ const themeToggle = document.getElementById("theme-toggle");
 const timeline = document.getElementById("timeline");
 const availabilityEl = document.getElementById("availability");
 const monthPicker = document.getElementById("month-picker");
+const availOpen = document.getElementById("avail-open");
+const availModal = document.getElementById("avail-modal");
+const availList = document.getElementById("avail-list");
+const availProject = document.getElementById("avail-project");
+const availSubmit = document.getElementById("avail-submit");
+const availCancel = document.getElementById("avail-cancel");
+const availSelectAll = document.getElementById("avail-select-all");
 
 const modalBackdrop = document.getElementById("slot-modal");
 const modalSummary = document.getElementById("modal-summary");
@@ -33,6 +40,8 @@ const CHART_RANGE = CHART_END - CHART_START;
 const PX_PER_MIN = 1;
 const CHART_HEIGHT = CHART_RANGE * PX_PER_MIN;
 const MIN_DRAG_MINUTES = 5;
+const REST_START = 11 * 60 + 45;
+const REST_END = 13 * 60 + 15;
 
 let data = { members: [], slots: [], projects: [] };
 let member = null;
@@ -43,6 +52,7 @@ let modalRange = null; // restricts start/end when launching from availability
 let confirmResolver = null;
 let selectedMonth = null;
 let themeMode = "light";
+let availabilityGaps = [];
 
 function generateId() {
   return crypto.randomUUID ? crypto.randomUUID() : `id-${Date.now()}-${Math.random()}`;
@@ -186,6 +196,9 @@ function colorForKey(key) {
 function hasOverlap(day, start, end, ignoreId = null) {
   const startMin = timeToMinutes(start);
   const endMin = timeToMinutes(end);
+  if (startMin < REST_END && endMin > REST_START) {
+    return true;
+  }
   return data.slots
     .filter((s) => s.memberId === memberId && s.day === day && s.id !== ignoreId && s.month === selectedMonth)
     .some((s) => {
@@ -197,7 +210,7 @@ function hasOverlap(day, start, end, ignoreId = null) {
 
 function renderTimeline() {
   timeline.innerHTML = "";
-  const days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
+  const days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"];
 
   const header = document.createElement("div");
   header.className = "calendar-header";
@@ -270,24 +283,33 @@ function renderTimeline() {
 function renderAvailability() {
   if (!availabilityEl) return;
   availabilityEl.innerHTML = "";
-  const days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
+  const days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"];
+  availabilityGaps = [];
   days.forEach((day) => {
     const daySlots = data.slots
       .filter((s) => s.memberId === memberId && s.day === day && s.month === selectedMonth)
       .sort((a, b) => a.start.localeCompare(b.start));
+    const merged = [
+      ...daySlots.map((s) => ({
+        start: Math.max(CHART_START, timeToMinutes(s.start)),
+        end: Math.min(CHART_END, timeToMinutes(s.end)),
+      })),
+      { start: REST_START, end: REST_END },
+    ]
+      .filter((s) => s.end > s.start)
+      .sort((a, b) => a.start - b.start);
     const gaps = [];
     let cursor = CHART_START;
-    if (!daySlots.length) {
+    if (!merged.length) {
       gaps.push([CHART_START, CHART_END]);
     } else {
-      daySlots.forEach((s) => {
-        const sStart = Math.max(CHART_START, timeToMinutes(s.start));
-        const sEnd = Math.min(CHART_END, timeToMinutes(s.end));
-        if (sStart > cursor) gaps.push([cursor, sStart]);
-        cursor = Math.max(cursor, sEnd);
+      merged.forEach((s) => {
+        if (s.start > cursor) gaps.push([cursor, s.start]);
+        cursor = Math.max(cursor, s.end);
       });
       if (cursor < CHART_END) gaps.push([cursor, CHART_END]);
     }
+    gaps.forEach((g) => availabilityGaps.push({ day, start: g[0], end: g[1] }));
 
     const row = document.createElement("div");
     row.className = "item";
@@ -368,7 +390,7 @@ function handleModalSave() {
   if (!start || !end) return showToast("Start and end times are required.", true);
   if (end <= start) return showToast("End time must be after start time.", true);
   if (hasOverlap(day, start, end, editingSlotId)) {
-    return showToast("This time overlaps an existing slot.", true);
+    return showToast("This time overlaps an existing slot or rest period.", true);
   }
   if (modalRange) {
     const startMin = timeToMinutes(start);
@@ -399,6 +421,58 @@ function showToast(message, isError = false) {
   showToast._timer = setTimeout(() => {
     toastEl.classList.remove("show");
   }, 2200);
+}
+
+function showAvailModal() {
+  if (!availabilityGaps.length) {
+    showToast("No available slots to add.", true);
+    return;
+  }
+  availProject.value = "";
+  availList.innerHTML = availabilityGaps
+    .map(
+      (g, idx) => `
+      <label class="item" style="grid-template-columns: auto 1fr; align-items:center; gap:10px;">
+        <input type="checkbox" data-idx="${idx}" />
+        <div>
+          <strong>${g.day}</strong>
+          <div class="meta">${minutesToTime(g.start)} – ${minutesToTime(g.end)}</div>
+        </div>
+      </label>
+    `
+    )
+    .join("");
+  availModal.classList.add("active");
+}
+
+function hideAvailModal() {
+  availModal.classList.remove("active");
+}
+
+function handleAvailSubmit() {
+  const project = availProject.value.trim();
+  if (!project) return showToast("Project is required.", true);
+  const inputs = Array.from(availList.querySelectorAll("input[type='checkbox'][data-idx]:checked"));
+  if (!inputs.length) return showToast("Select at least one slot.", true);
+  inputs.forEach((inp) => {
+    const gap = availabilityGaps[Number(inp.dataset.idx)];
+    if (!gap) return;
+    if (gap.start < REST_END && gap.end > REST_START) return;
+    data.slots.push({
+      id: generateId(),
+      memberId,
+      project,
+      day: gap.day,
+      start: minutesToTime(gap.start),
+      end: minutesToTime(gap.end),
+      month: selectedMonth,
+    });
+  });
+  saveToStorage();
+  renderTimeline();
+  renderAvailability();
+  hideAvailModal();
+  showToast("Slots added.");
 }
 
 function attachDragHandlers(col, day) {
@@ -468,16 +542,16 @@ async function init() {
   timeline.addEventListener("click", (e) => {
     const btn = e.target.closest("button[data-action='remove-slot']");
     if (btn) {
-        const { id } = btn.dataset;
-        confirmDialog("Delete this slot?").then((ok) => {
-          if (!ok) return;
-          data.slots = data.slots.filter((s) => s.id !== id);
-          saveToStorage();
-          renderTimeline();
-          renderAvailability();
-          showToast("Slot deleted.");
-        });
-      }
+      const { id } = btn.dataset;
+      confirmDialog("Delete this slot?").then((ok) => {
+        if (!ok) return;
+        data.slots = data.slots.filter((s) => s.id !== id);
+        saveToStorage();
+        renderTimeline();
+        renderAvailability();
+        showToast("Slot deleted.");
+      });
+    }
   });
   availabilityEl.addEventListener("click", (e) => {
     const chip = e.target.closest("[data-available-day]");
@@ -503,6 +577,22 @@ async function init() {
       selectedMonth = monthPicker.value || currentMonth();
       renderTimeline();
       renderAvailability();
+    });
+  }
+
+  if (availOpen) availOpen.addEventListener("click", showAvailModal);
+  if (availSubmit) availSubmit.addEventListener("click", handleAvailSubmit);
+  if (availCancel) availCancel.addEventListener("click", hideAvailModal);
+  if (availSelectAll) {
+    availSelectAll.addEventListener("click", () => {
+      const inputs = Array.from(availList.querySelectorAll("input[type='checkbox'][data-idx]"));
+      const shouldSelectAll = inputs.some((i) => !i.checked);
+      inputs.forEach((i) => (i.checked = shouldSelectAll));
+    });
+  }
+  if (availModal) {
+    availModal.addEventListener("click", (e) => {
+      if (e.target === availModal) hideAvailModal();
     });
   }
 
